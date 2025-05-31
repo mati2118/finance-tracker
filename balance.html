@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Personal Finance Tracker</title>
+  <link rel="stylesheet" href="balance.css">
+
+</head>
+<body>
+  <header>
+    <h1>Finance Tracker</h1>
+    <div class="header-buttons">
+    <button id="logout-btn">Logout</button>
+    <button id="delete-account-btn" aria-label="Delete Account">Delete Account</button>
+  </div>
+  </header>
+
+  <main class="app" role="main" aria-label="Finance Tracker Application">
+
+    <section class="summary" aria-live="polite" aria-atomic="true">
+      <div class="summary-box balance">
+        <h3>Balance</h3>
+        <p id="balance">$0.00</p>
+      </div>
+      <div class="summary-box income">
+        <h3>Income</h3>
+        <p id="income">$0.00</p>
+      </div>
+      <div class="summary-box expense">
+        <h3>Expense</h3>
+        <p id="expense">$0.00</p>
+      </div>
+    </section>
+
+    <form id="transaction-form" aria-label="Add new transaction">
+      <input
+        type="text"
+        id="text"
+        placeholder="Description"
+        required
+        aria-required="true"
+        aria-describedby="descHelp"
+      />
+      <input
+        type="number"
+        id="amount"
+        placeholder="Amount"
+        required
+        aria-required="true"
+        aria-describedby="amountHelp"
+        step="0.01"
+        min="0.01"
+      />
+      <select id="type" aria-label="Select transaction type">
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+      <button type="submit">Add Transaction</button>
+    </form>
+
+    <ul id="transaction-list" aria-label="List of transactions"></ul>
+  </main>
+
+  <footer>
+    &copy; 2025 Finance Tracker. All rights reserved. <br>
+    <a href="contact.html" style="color: #a6c8ff; text-decoration: underline;">Contact Us</a>
+
+  </footer>
+
+  <script>
+    const loggedInUser = localStorage.getItem('loggedInUser');
+    if (!loggedInUser) {
+      alert('Please log in first.');
+      window.location.href = 'login.html';
+    }
+
+    const balanceEl = document.getElementById('balance');
+    const incomeEl = document.getElementById('income');
+    const expenseEl = document.getElementById('expense');
+    const transactionList = document.getElementById('transaction-list');
+    const form = document.getElementById('transaction-form');
+    const deleteAccountBtn = document.getElementById('delete-account-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    let transactions = JSON.parse(localStorage.getItem('transactions_' + loggedInUser)) || [];
+
+    function saveTransactions() {
+      localStorage.setItem('transactions_' + loggedInUser, JSON.stringify(transactions));
+    }
+
+    function renderTransactions() {
+      transactionList.innerHTML = '';
+      if (transactions.length === 0) {
+        transactionList.innerHTML = '<li style="text-align:center; color:#a6c8ff;">No transactions yet.</li>';
+        updateSummary();
+        return;
+      }
+      transactions.forEach(addTransactionDOM);
+      updateSummary();
+    }
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+
+      const text = document.getElementById('text').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value);
+      const type = document.getElementById('type').value;
+
+      if (text === '' || isNaN(amount) || amount <= 0) {
+        alert('Please enter a valid description and amount.');
+        return;
+      }
+
+      const transaction = {
+        id: Date.now(),
+        text,
+        amount,
+        type
+      };
+
+      transactions.push(transaction);
+      saveTransactions();
+      renderTransactions();
+      form.reset();
+    });
+
+    function addTransactionDOM(transaction) {
+      const li = document.createElement('li');
+      li.classList.add(transaction.type === 'income' ? 'income-item' : 'expense-item');
+      li.innerHTML = `
+        <span>${transaction.text}</span>
+        <span>
+          $${transaction.amount.toFixed(2)}
+          <button class="delete-btn" aria-label="Delete transaction" onclick="deleteTransaction(${transaction.id})">&times;</button>
+        </span>
+      `;
+      transactionList.appendChild(li);
+    }
+
+    function updateSummary() {
+      const income = transactions
+        .filter(t => t.type === 'income')
+        .reduce((acc, t) => acc + t.amount, 0);
+      const expense = transactions
+        .filter(t => t.type === 'expense')
+        .reduce((acc, t) => acc + t.amount, 0);
+
+      balanceEl.textContent = `$${(income - expense).toFixed(2)}`;
+      incomeEl.textContent = `$${income.toFixed(2)}`;
+      expenseEl.textContent = `$${expense.toFixed(2)}`;
+    }
+
+    function deleteTransaction(id) {
+      const confirmDelete = confirm("Are you sure you want to delete this transaction?");
+      if (!confirmDelete) return;
+
+      transactions = transactions.filter(t => t.id !== id);
+      saveTransactions();
+      renderTransactions();
+    }
+
+    // Delete account handler
+    deleteAccountBtn.addEventListener('click', () => {
+      const confirmDelete = confirm('Are you sure you want to delete your account? This action cannot be undone.');
+      if (!confirmDelete) return;
+
+      const users = JSON.parse(localStorage.getItem('users')) || {};
+      delete users[loggedInUser];
+      localStorage.setItem('users', JSON.stringify(users));
+      localStorage.removeItem('loggedInUser');
+      localStorage.removeItem('transactions_' + loggedInUser);
+
+      alert('Your account has been deleted.');
+      window.location.href = 'login.html';
+    });
+
+    // Logout handler
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('loggedInUser');
+      window.location.href = 'login.html';
+    });
+
+    window.addEventListener('storage', () => {
+      transactions = JSON.parse(localStorage.getItem('transactions_' + loggedInUser)) || [];
+      renderTransactions();
+    });
+
+    renderTransactions();
+  </script>
+</body>
+</html>
