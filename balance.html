@@ -5,20 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Personal Finance Tracker</title>
   <link rel="stylesheet" href="balance.css">
+  <style>
+    /* Modal Styles */
+    #password-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      justify-content: center;
+      align-items: center;
+    }
 
+    .modal-content {
+      background: #13244d;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+    }
+
+    .modal-content input {
+      display: block;
+      margin: 10px 0;
+      width: 100%;
+      padding: 8px;
+    }
+
+    .modal-content button {
+      margin-right: 10px;
+    }
+  </style>
 </head>
 <body>
   <header>
     <h1>Finance Tracker</h1>
     <div class="header-buttons">
-    <button id="logout-btn">Logout</button>
-    <button id="delete-account-btn" aria-label="Delete Account">Delete Account</button>
-  </div>
+      <button id="change-password-btn">Change Password</button>
+      <button id="logout-btn">Logout</button>
+      <button id="delete-account-btn">Delete Account</button>
+    </div>
   </header>
 
-  <main class="app" role="main" aria-label="Finance Tracker Application">
-
-    <section class="summary" aria-live="polite" aria-atomic="true">
+  <main class="app">
+    <section class="summary">
       <div class="summary-box balance">
         <h3>Balance</h3>
         <p id="balance">$0.00</p>
@@ -33,40 +61,34 @@
       </div>
     </section>
 
-    <form id="transaction-form" aria-label="Add new transaction">
-      <input
-        type="text"
-        id="text"
-        placeholder="Description"
-        required
-        aria-required="true"
-        aria-describedby="descHelp"
-      />
-      <input
-        type="number"
-        id="amount"
-        placeholder="Amount"
-        required
-        aria-required="true"
-        aria-describedby="amountHelp"
-        step="0.01"
-        min="0.01"
-      />
-      <select id="type" aria-label="Select transaction type">
+    <form id="transaction-form">
+      <input type="text" id="text" placeholder="Description" required />
+      <input type="number" id="amount" placeholder="Amount" step="0.01" min="0.01" required />
+      <select id="type">
         <option value="income">Income</option>
         <option value="expense">Expense</option>
       </select>
       <button type="submit">Add Transaction</button>
     </form>
 
-    <ul id="transaction-list" aria-label="List of transactions"></ul>
+    <ul id="transaction-list"></ul>
   </main>
 
   <footer>
     &copy; 2025 Finance Tracker. All rights reserved. <br>
     <a href="contact.html" style="color: #a6c8ff; text-decoration: underline;">Contact Us</a>
-
   </footer>
+
+  <!-- Password Modal -->
+  <div id="password-modal">
+    <div class="modal-content">
+      <h3>Change Password</h3>
+      <input type="password" id="old-password" placeholder="Old Password" />
+      <input type="password" id="new-password" placeholder="New Password" />
+      <button id="submit-password-change" style=" background-color: #a6c8ff; color: #13244d; border: none;">Submit</button>
+      <button onclick="closeModal()" style="background-color: #a6c8ff; color:#13244d; border: none;">Cancel</button>
+    </div>
+  </div>
 
   <script>
     const loggedInUser = localStorage.getItem('loggedInUser');
@@ -82,6 +104,8 @@
     const form = document.getElementById('transaction-form');
     const deleteAccountBtn = document.getElementById('delete-account-btn');
     const logoutBtn = document.getElementById('logout-btn');
+    const changePasswordBtn = document.getElementById('change-password-btn');
+    const passwordModal = document.getElementById('password-modal');
 
     let transactions = JSON.parse(localStorage.getItem('transactions_' + loggedInUser)) || [];
 
@@ -102,7 +126,6 @@
 
     form.addEventListener('submit', e => {
       e.preventDefault();
-
       const text = document.getElementById('text').value.trim();
       const amount = parseFloat(document.getElementById('amount').value);
       const type = document.getElementById('type').value;
@@ -132,19 +155,15 @@
         <span>${transaction.text}</span>
         <span>
           $${transaction.amount.toFixed(2)}
-          <button class="delete-btn" aria-label="Delete transaction" onclick="deleteTransaction(${transaction.id})">&times;</button>
+          <button class="delete-btn" onclick="deleteTransaction(${transaction.id})">&times;</button>
         </span>
       `;
       transactionList.appendChild(li);
     }
 
     function updateSummary() {
-      const income = transactions
-        .filter(t => t.type === 'income')
-        .reduce((acc, t) => acc + t.amount, 0);
-      const expense = transactions
-        .filter(t => t.type === 'expense')
-        .reduce((acc, t) => acc + t.amount, 0);
+      const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+      const expense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
 
       balanceEl.textContent = `$${(income - expense).toFixed(2)}`;
       incomeEl.textContent = `$${income.toFixed(2)}`;
@@ -152,30 +171,23 @@
     }
 
     function deleteTransaction(id) {
-      const confirmDelete = confirm("Are you sure you want to delete this transaction?");
-      if (!confirmDelete) return;
-
+      if (!confirm("Are you sure you want to delete this transaction?")) return;
       transactions = transactions.filter(t => t.id !== id);
       saveTransactions();
       renderTransactions();
     }
 
-    // Delete account handler
     deleteAccountBtn.addEventListener('click', () => {
-      const confirmDelete = confirm('Are you sure you want to delete your account? This action cannot be undone.');
-      if (!confirmDelete) return;
-
+      if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) return;
       const users = JSON.parse(localStorage.getItem('users')) || {};
       delete users[loggedInUser];
       localStorage.setItem('users', JSON.stringify(users));
       localStorage.removeItem('loggedInUser');
       localStorage.removeItem('transactions_' + loggedInUser);
-
       alert('Your account has been deleted.');
       window.location.href = 'login.html';
     });
 
-    // Logout handler
     logoutBtn.addEventListener('click', () => {
       localStorage.removeItem('loggedInUser');
       window.location.href = 'login.html';
@@ -187,6 +199,33 @@
     });
 
     renderTransactions();
+
+    // Change Password Modal
+    changePasswordBtn.addEventListener('click', () => {
+      passwordModal.style.display = 'flex';
+    });
+
+    document.getElementById('submit-password-change').addEventListener('click', () => {
+      const oldPassword = document.getElementById('old-password').value;
+      const newPassword = document.getElementById('new-password').value;
+
+      const users = JSON.parse(localStorage.getItem('users')) || {};
+      if (users[loggedInUser] !== oldPassword) {
+        alert('Old password is incorrect.');
+        return;
+      }
+
+      users[loggedInUser] = newPassword;
+      localStorage.setItem('users', JSON.stringify(users));
+      alert('Password changed successfully.');
+      closeModal();
+    });
+
+    function closeModal() {
+      document.getElementById('old-password').value = '';
+      document.getElementById('new-password').value = '';
+      passwordModal.style.display = 'none';
+    }
   </script>
 </body>
 </html>
